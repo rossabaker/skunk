@@ -4,15 +4,19 @@
 
 package example
 
+import cats._
 import cats.effect._
 import cats.syntax.all._
 import skunk._, skunk.implicits._, skunk.codec.all.int4
-import natchez.Trace.Implicits.noop
+import org.typelevel.otel4s.trace.Tracer
 import cats.effect.std.Console
+import fs2.io.net.Network
 
 object Transaction extends IOApp {
 
-  def session[F[_]: Async: Console]: Resource[F, Session[F]] =
+  implicit def tracer[F[_]: MonadCancelThrow]: Tracer[F] = Tracer.noop
+
+  def session[F[_]: Temporal: Console: Network]: Resource[F, Session[F]] =
     Session.single(
       host     = "localhost",
       port     = 5432,
@@ -21,7 +25,7 @@ object Transaction extends IOApp {
       password = Some("banana"),
     )
 
-  def runS[F[_]: Async: Console]: F[Int] =
+  def runS[F[_]: Temporal: Console: Network]: F[Int] =
     session[F].use { s =>
       s.transaction.use { t =>
         for {
